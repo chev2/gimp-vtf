@@ -212,11 +212,6 @@ static GimpImage *load_image(GFile *file, GError **error) {
         }
     }
 
-    // int face_count = vtf_file.getFaceCount();
-    // if (face_count > 1) {
-    //     // TODO
-    // }
-
     return image;
 }
 
