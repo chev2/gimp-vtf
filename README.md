@@ -27,6 +27,10 @@ Download the zip file according to your operating system.
 
 ## Build
 
+This project requires GIMP 3.0 development headers to be present.
+
+Install them however you normally would for whatever operating system or distro you use.
+
 1. Initialize cmake: `cmake -B out/build/default`
 2. Compile the executable: `cmake --build out/build/default`
 
