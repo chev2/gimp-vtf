@@ -27,7 +27,7 @@ Download the zip file according to your operating system.
 
 ## Build
 
-1. Initialize cmake: `cmake .`
-2. Compile the executable: `cmake --build .`
+1. Initialize cmake: `cmake -B out/build/default`
+2. Compile the executable: `cmake --build out/build/default`
 
-It will create the `file-vtf` executable in the root Git directory.
+It will create the `file-vtf` executable in the `out/build/default` directory.
