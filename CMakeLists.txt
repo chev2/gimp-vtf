@@ -6,22 +6,23 @@ project(
     HOMEPAGE_URL "https://github.com/chev2/gimp-vtf"
     LANGUAGES C CXX)
 
+# Build debug symbols
+#set(CMAKE_BUILD_TYPE Debug)
+
+# Force C++20
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 set(CMAKE_SKIP_BUILD_RPATH OFF)
 set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 set(CMAKE_INSTALL_RPATH $ORIGIN)
-
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(PkgConfig REQUIRED)
 
+pkg_check_modules(GIMPUI_3_0 REQUIRED IMPORTED_TARGET GLOBAL gimpui-3.0)
 pkg_check_modules(GIMP_3_0 REQUIRED IMPORTED_TARGET GLOBAL gimp-3.0)
-
-add_executable(file-vtf src/file-vtf.cpp)
 
 # Set sourcepp compile options
 set(SOURCEPP_LIBS_START_ENABLED OFF CACHE INTERNAL "" FORCE)
@@ -47,4 +48,5 @@ set(CRYPTOPP_INSTALL       OFF CACHE INTERNAL "" FORCE)
 set(CRYPTOPP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ext/cryptopp")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ext/sourcepp")
 
-target_link_libraries(file-vtf PRIVATE PkgConfig::GIMP_3_0 sourcepp::vtfpp)
+add_executable(file-vtf src/file-vtf.cpp)
+target_link_libraries(file-vtf PRIVATE PkgConfig::GIMP_3_0 PkgConfig::GIMPUI_3_0 sourcepp::vtfpp)
