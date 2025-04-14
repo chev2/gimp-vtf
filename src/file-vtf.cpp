@@ -187,9 +187,6 @@ static GimpImage *load_image(GFile *file, GError **error) {
             GeglBuffer *buffer = gimp_drawable_get_buffer(GIMP_DRAWABLE(layer));
             std::vector<std::byte> image_data_rgba = vtf_file.getImageDataAsRGBA8888(0, fr_i, fa_i, 0);
 
-            // TODO: something goes wrong with color calculation here
-            //  the image looked desaturated/washed out
-
             // 4 bytes per pixel (r, g, b, a)
             uint8_t *dst_buf = g_new(uint8_t, width * height * 4);
             for (int i = 0; i < image_data_rgba.size(); i++) {
