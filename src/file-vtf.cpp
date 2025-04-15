@@ -260,6 +260,26 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             G_PARAM_READWRITE
         );
 
+        // Resize method (how to resize the image when the width and height aren't a power-of-two)
+        GimpChoice *choice_resize_method = gimp_choice_new_with_values(
+            "bigger",   (int)vtfpp::ImageConversion::ResizeMethod::POWER_OF_TWO_BIGGER,     "Power of two (bigger)", NULL,
+            "smaller",  (int)vtfpp::ImageConversion::ResizeMethod::POWER_OF_TWO_SMALLER,    "Power of two (smaller)", NULL,
+            "nearest",  (int)vtfpp::ImageConversion::ResizeMethod::POWER_OF_TWO_NEAREST,    "Power of two (nearest)", NULL,
+            NULL
+        );
+        gimp_procedure_add_choice_argument(
+            procedure,
+            "resize_method",
+            "Resize method",
+            "Resize method to use when the image isn't a power-of-two in either its width or height."
+            "\nBigger: Always round up to the nearest power of two."
+            "\nSmaller: Always round down to the nearest power of two."
+            "\nNearest: Round to whichever power of two is closer.",
+            choice_resize_method,
+            "bigger",
+            G_PARAM_READWRITE
+        );
+
         gimp_export_procedure_set_support_exif(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_iptc(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_xmp(GIMP_EXPORT_PROCEDURE(procedure), false);
@@ -461,6 +481,7 @@ static gboolean export_dialog(
         "version",
         "image_format",
         "mipmap_filter",
+        "resize_method",
         NULL
     );
     
@@ -494,6 +515,8 @@ static gboolean export_image(GFile *file,
     int mipmap_filter = gimp_procedure_config_get_choice_id(config, "mipmap_filter");
     bool shouldComputeMips = (mipmap_filter == -1) ? false : true;
 
+    vtfpp::ImageConversion::ResizeMethod resize_method = (vtfpp::ImageConversion::ResizeMethod)gimp_procedure_config_get_choice_id(config, "resize_method");
+
     GeglBuffer *buffer = gimp_drawable_get_buffer(drawable);
     int width = gegl_buffer_get_width(buffer);
     int height = gegl_buffer_get_height(buffer);
@@ -505,8 +528,8 @@ static gboolean export_image(GFile *file,
     vtfpp::VTF::CreationOptions creation_options;
     creation_options.minorVersion = file_version;
     creation_options.outputFormat = image_format;
-    creation_options.widthResizeMethod = vtfpp::ImageConversion::ResizeMethod::POWER_OF_TWO_NEAREST;
-    creation_options.heightResizeMethod = vtfpp::ImageConversion::ResizeMethod::POWER_OF_TWO_NEAREST;
+    creation_options.widthResizeMethod = resize_method;
+    creation_options.heightResizeMethod = resize_method;
     creation_options.computeMips = shouldComputeMips;
 
     // Create a new VTF with the user's selected options
