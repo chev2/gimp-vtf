@@ -481,9 +481,14 @@ static gboolean export_image(GFile *file,
 ) {
     const Babl *file_format = gimp_drawable_get_format(drawable);
 
+    // This is specifically the VTF minor version. So if the user chose 7.4, this would be '4'
     int file_version = gimp_procedure_config_get_choice_id(config, "version");
     // Image format (DXT1, RGBA8888, etc.)
     vtfpp::ImageFormat image_format = (vtfpp::ImageFormat)gimp_procedure_config_get_choice_id(config, "image_format");
+    // TODO (image types):
+    //  - If standard, do nothing special.
+    //  - If environment map, set related flag, and use CreationOptions.isCubeMap
+    //  - If volumetric texture, set related flag
     int image_type = gimp_procedure_config_get_choice_id(config, "image_type");
     // Mipmap filter. '-1' is a special value and means "don't generate mipmaps at all"
     int mipmap_filter = gimp_procedure_config_get_choice_id(config, "mipmap_filter");
@@ -527,6 +532,8 @@ static gboolean export_image(GFile *file,
     );
     g_object_unref(buffer);
 
+    // The vtfpp library can't seem to interface with uint8_t directly, so we have to
+    //  move data to a vector
     std::vector<std::byte> raw_bytes_vec;
     for (int i = 0; i < file_bytes_count; i++) {
         raw_bytes_vec.push_back((std::byte)raw_bytes[i]);
@@ -535,9 +542,17 @@ static gboolean export_image(GFile *file,
     // Take the bytes from the vector and parse it as a VTF image layer
     bool bytes_to_image_successful = export_vtf.setImage(
         raw_bytes_vec,
+        // Because the raw_bytes_vec is stored using 4 bytes per pixel,
+        //  we *must* use RGBA8888 when we initially import from the GIMP layers to the VTF.
+        // However, the user's selected VTF format will still be respected once we write to disk.
         vtfpp::ImageFormat::RGBA8888,
         width,
         height,
+        // This is specifically the resize method used when the user gives the image in GIMP
+        //  an invalid size. It is *not* used when generating mipmaps (as far as I'm aware).
+        // Might make this configurable to the user, but there is an argument to be made that
+        //  if the user wanted to resize the image, they could just do it in GIMP. So for now,
+        //  I won't add it.
         vtfpp::ImageConversion::ResizeFilter::DEFAULT,
         0,
         0,
