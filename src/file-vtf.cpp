@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include "vtfpp/ImageConversion.h"
 #include "vtfpp/ImageFormats.h"
 #include "vtfpp/VTF.h"
 #include <libgimp/gimp.h>
@@ -38,25 +39,48 @@ G_DECLARE_FINAL_TYPE(GimpVtf, gimp_vtf, GIMP_VTF,, GimpPlugIn)
 G_DEFINE_TYPE(GimpVtf, gimp_vtf, GIMP_TYPE_PLUG_IN)
 
 // Headers
-static GList *gimp_vtf_query_procedures(GimpPlugIn *plugin);
-static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar *name);
-static GimpValueArray *gimp_vtf_load(GimpProcedure *procedure,
+static GList *gimp_vtf_query_procedures(
+    GimpPlugIn *plugin
+);
+static GimpProcedure *gimp_vtf_create_procedure(
+    GimpPlugIn *plugin, const gchar *name
+);
+static GimpValueArray *gimp_vtf_load(
+    GimpProcedure *procedure,
     GimpRunMode run_mode,
     GFile *file,
     GimpMetadata *metadata,
     GimpMetadataLoadFlags *flags,
     GimpProcedureConfig *config,
     gpointer run_data);
-static GimpImage *load_image(GFile *file, GError **error);
-static GimpValueArray *gimp_vtf_export(GimpProcedure *procedure,
+static GimpImage *load_image(
+    GFile *file,
+    GError **error
+);
+static GimpValueArray *gimp_vtf_export(
+    GimpProcedure *procedure,
     GimpRunMode run_mode,
     GimpImage *image,
     GFile *file,
     GimpExportOptions *options,
     GimpMetadata *metadata,
     GimpProcedureConfig *config,
-    gpointer run_data);
-static gboolean export_dialog(GimpImage *image, GimpProcedure *procedure, GimpProcedureConfig *config);
+    gpointer run_data
+);
+static gboolean export_dialog(
+    GimpImage *image,
+    GimpProcedure *procedure,
+    GimpProcedureConfig *config
+);
+static gboolean export_image(
+    GFile *file,
+    GimpImage *image,
+    GimpDrawable *drawable,
+    GimpImage *orig_image,
+    GimpProcedureConfig *config,
+    gboolean has_alpha,
+    GError **error
+);
 
 static void gimp_vtf_class_init(GimpVtfClass *gclass) {
     GimpPlugInClass *plug_in_class = GIMP_PLUG_IN_CLASS(gclass);
@@ -271,13 +295,15 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
 // - https://gitlab.gnome.org/GNOME/gimp/-/blob/master/plug-ins/common/file-png.c
 // - https://gitlab.gnome.org/GNOME/gimp/-/blob/master/plug-ins/file-jpeg/jpeg-load.c
 // - https://fossies.org/diffs/gimp/2.10.38_vs_3.0.0/libgimp/gimppixelrgn.h-diff.html
-static GimpValueArray *gimp_vtf_load(GimpProcedure *procedure,
-                                    GimpRunMode run_mode,
-                                    GFile *file,
-                                    GimpMetadata *metadata,
-                                    GimpMetadataLoadFlags *flags,
-                                    GimpProcedureConfig *config,
-                                    gpointer run_data) {
+static GimpValueArray *gimp_vtf_load(
+    GimpProcedure *procedure,
+    GimpRunMode run_mode,
+    GFile *file,
+    GimpMetadata *metadata,
+    GimpMetadataLoadFlags *flags,
+    GimpProcedureConfig *config,
+    gpointer run_data
+) {
     GimpValueArray *return_vals;
     GError *error = NULL;
 
@@ -367,23 +393,30 @@ static GimpImage *load_image(GFile *file, GError **error) {
     return image;
 }
 
-static GimpValueArray *gimp_vtf_export(GimpProcedure *procedure,
-                                       GimpRunMode run_mode,
-                                       GimpImage *image,
-                                       GFile *file,
-                                       GimpExportOptions *options,
-                                       GimpMetadata *metadata,
-                                       GimpProcedureConfig *config,
-                                       gpointer run_data) {
+static GimpValueArray *gimp_vtf_export(
+    GimpProcedure *procedure,
+    GimpRunMode run_mode,
+    GimpImage *image,
+    GFile *file,
+    GimpExportOptions *options,
+    GimpMetadata *metadata,
+    GimpProcedureConfig *config,
+    gpointer run_data
+) {
+    GimpPDBStatusType status = GIMP_PDB_SUCCESS;
     GimpExportReturn export_type = GIMP_EXPORT_IGNORE;
+    GList *drawables;
+    GimpImage *orig_image;
+    gboolean has_alpha;
+    GError *error = NULL;
 
     gegl_init(NULL, NULL);
 
-    GimpImage *orig_image = image;
+    orig_image = image;
 
     export_type = gimp_export_options_get_image(options, &image);
-    GList *drawables = gimp_image_list_layers(image);
-    //gboolean alpha = gimp_drawable_has_alpha(drawables->data);
+    drawables = gimp_image_list_layers(image);
+    has_alpha = gimp_drawable_has_alpha(GIMP_DRAWABLE(drawables->data));
 
     // https://gitlab.gnome.org/GNOME/gimp/-/blob/master/plug-ins/file-jpeg/jpeg.c#L448
     switch (run_mode) {
@@ -396,9 +429,28 @@ static GimpValueArray *gimp_vtf_export(GimpProcedure *procedure,
             {
                 gimp_ui_init(PROC_VTF_BINARY);
 
-                export_dialog(orig_image, procedure, config);
-            }    
+                if (!export_dialog(orig_image, procedure, config)) {
+                    status = GIMP_PDB_CANCEL;
+                }
+            }
             break;
+    }
+
+    // If we're ready to continue with exporting the image to disk
+    if (status == GIMP_PDB_SUCCESS) {
+        gboolean export_successful = export_image(
+            file,
+            image,
+            GIMP_DRAWABLE(drawables->data),
+            orig_image,
+            config,
+            has_alpha,
+            &error
+        );
+
+        if (!export_successful) {
+            status = GIMP_PDB_EXECUTION_ERROR;
+        }
     }
 
     if (export_type == GIMP_EXPORT_EXPORT) {
@@ -409,10 +461,14 @@ static GimpValueArray *gimp_vtf_export(GimpProcedure *procedure,
 
     gimp_message("Ran successfully");
 
-    return gimp_procedure_new_return_values(procedure, GIMP_PDB_SUCCESS, NULL);
+    return gimp_procedure_new_return_values(procedure, status, NULL);
 }
 
-static gboolean export_dialog(GimpImage *image, GimpProcedure *procedure, GimpProcedureConfig *config) {
+static gboolean export_dialog(
+    GimpImage *image,
+    GimpProcedure *procedure,
+    GimpProcedureConfig *config
+) {
     GtkWidget *dialog = gimp_export_procedure_dialog_new(
         GIMP_EXPORT_PROCEDURE(procedure),
         config,
@@ -430,7 +486,74 @@ static gboolean export_dialog(GimpImage *image, GimpProcedure *procedure, GimpPr
     gtk_widget_destroy(dialog);
     
     return run_successful;
-    //return true;
+}
+
+static gboolean export_image(GFile *file,
+    GimpImage *image,
+    GimpDrawable *drawable,
+    GimpImage *orig_image,
+    GimpProcedureConfig *config,
+    gboolean has_alpha,
+    GError **error
+) {
+    const Babl *file_format = gimp_drawable_get_format(drawable);
+
+    int file_version = gimp_procedure_config_get_choice_id(config, "version");
+    int image_format = gimp_procedure_config_get_choice_id(config, "image_format");
+    int image_type = gimp_procedure_config_get_choice_id(config, "image_type");
+
+    GeglBuffer *buffer = gimp_drawable_get_buffer(drawable);
+    int width = gegl_buffer_get_width(buffer);
+    int height = gegl_buffer_get_height(buffer);
+
+    vtfpp::VTF::CreationOptions creation_options;
+    creation_options.minorVersion = file_version;
+    creation_options.outputFormat = (vtfpp::ImageFormat)image_format;
+
+    // Create a new VTF with the user's selected options
+    vtfpp::VTF export_vtf = vtfpp::VTF::create(
+        (vtfpp::ImageFormat)image_format,
+        width,
+        height,
+        creation_options
+    );
+
+    // Take bytes from the GIMP drawable buffer and put it in this vector
+    int file_bytes_count = width * height * 4;
+    uint8_t *raw_bytes = g_new(uint8_t, file_bytes_count);
+    gegl_buffer_get(
+        buffer,
+        GEGL_RECTANGLE(0, 0, width, height),
+        1.0,
+        file_format,
+        raw_bytes,
+        GEGL_AUTO_ROWSTRIDE,
+        GEGL_ABYSS_NONE
+    );
+    g_object_unref(buffer);
+
+    std::vector<std::byte> raw_bytes_vec;
+    for (int i = 0; i < file_bytes_count; i++) {
+        raw_bytes_vec.push_back((std::byte)raw_bytes[i]);
+    }
+
+    // Take the bytes from the vector and parse it as a VTF image layer
+    bool bytes_to_image_successful = export_vtf.setImage(
+        raw_bytes_vec,
+        vtfpp::ImageFormat::RGBA8888,
+        width,
+        height,
+        vtfpp::ImageConversion::ResizeFilter::DEFAULT,
+        0,
+        0,
+        0,
+        0
+    );
+
+    // Write VTF to file
+    bool export_successful = export_vtf.bake(g_file_get_path(file));
+
+    return export_successful;
 }
 
 GIMP_MAIN(GIMP_VTF_TYPE);
