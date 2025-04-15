@@ -237,6 +237,29 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             G_PARAM_READWRITE
         );
 
+        // Mipmaps (as well as an option of whether or not to even generate them)
+        GimpChoice *choice_mipmaps = gimp_choice_new_with_values(
+            "none",         -1,                                                         "None (don't generate mipmaps)", NULL,
+            "default",      (int)vtfpp::ImageConversion::ResizeFilter::DEFAULT,         "Default", NULL,
+            "box",          (int)vtfpp::ImageConversion::ResizeFilter::BOX,             "Box", NULL,
+            "bilinear",     (int)vtfpp::ImageConversion::ResizeFilter::BILINEAR,        "Bilinear", NULL,
+            "cubic",        (int)vtfpp::ImageConversion::ResizeFilter::CUBIC_BSPLINE,   "Cubic", NULL,
+            "catmull",      (int)vtfpp::ImageConversion::ResizeFilter::CATMULL_ROM,     "Catmull/Catrom", NULL,
+            "mitchell",     (int)vtfpp::ImageConversion::ResizeFilter::MITCHELL,        "Mitchell", NULL,
+            "point",        (int)vtfpp::ImageConversion::ResizeFilter::POINT_SAMPLE,    "Point", NULL,
+            "kaiser",       (int)vtfpp::ImageConversion::ResizeFilter::KAISER,          "Kaiser", NULL,
+            NULL
+        );
+        gimp_procedure_add_choice_argument(
+            procedure,
+            "mipmap_filter",
+            "Mipmap filter",
+            "Mipmap resize filter to use.\nRecommended: Kaiser.",
+            choice_mipmaps,
+            "kaiser",
+            G_PARAM_READWRITE
+        );
+
         gimp_export_procedure_set_support_exif(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_iptc(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_xmp(GIMP_EXPORT_PROCEDURE(procedure), false);
@@ -434,7 +457,10 @@ static gboolean export_dialog(
 
     gimp_procedure_dialog_fill(
         GIMP_PROCEDURE_DIALOG(dialog),
-        "image_type", "version", "image_format",
+        "image_type",
+        "version",
+        "image_format",
+        "mipmap_filter",
         NULL
     );
     
@@ -456,20 +482,31 @@ static gboolean export_image(GFile *file,
     const Babl *file_format = gimp_drawable_get_format(drawable);
 
     int file_version = gimp_procedure_config_get_choice_id(config, "version");
-    int image_format = gimp_procedure_config_get_choice_id(config, "image_format");
+    // Image format (DXT1, RGBA8888, etc.)
+    vtfpp::ImageFormat image_format = (vtfpp::ImageFormat)gimp_procedure_config_get_choice_id(config, "image_format");
     int image_type = gimp_procedure_config_get_choice_id(config, "image_type");
+    // Mipmap filter. '-1' is a special value and means "don't generate mipmaps at all"
+    int mipmap_filter = gimp_procedure_config_get_choice_id(config, "mipmap_filter");
+    bool shouldComputeMips = (mipmap_filter == -1) ? false : true;
 
     GeglBuffer *buffer = gimp_drawable_get_buffer(drawable);
     int width = gegl_buffer_get_width(buffer);
     int height = gegl_buffer_get_height(buffer);
 
+    // TODO:
+    //  - auto generate mipmaps
+    //  - (DONE) make weird resizes to standard power-of-two work
+    //  - export multiple layers as multiple frames (& equivalent for faces)
     vtfpp::VTF::CreationOptions creation_options;
     creation_options.minorVersion = file_version;
-    creation_options.outputFormat = (vtfpp::ImageFormat)image_format;
+    creation_options.outputFormat = image_format;
+    creation_options.widthResizeMethod = vtfpp::ImageConversion::ResizeMethod::POWER_OF_TWO_NEAREST;
+    creation_options.heightResizeMethod = vtfpp::ImageConversion::ResizeMethod::POWER_OF_TWO_NEAREST;
+    creation_options.computeMips = shouldComputeMips;
 
     // Create a new VTF with the user's selected options
     vtfpp::VTF export_vtf = vtfpp::VTF::create(
-        (vtfpp::ImageFormat)image_format,
+        image_format,
         width,
         height,
         creation_options
@@ -507,7 +544,14 @@ static gboolean export_image(GFile *file,
         0
     );
 
-    // Write VTF to file
+    if (shouldComputeMips) {
+        export_vtf.setMipCount(vtfpp::ImageDimensions::getRecommendedMipCountForDims(image_format, width, height));
+        export_vtf.computeMips((vtfpp::ImageConversion::ResizeFilter)mipmap_filter);
+    } else {
+        export_vtf.setMipCount(1);
+    }
+
+    // Write VTF to file on disk
     bool export_successful = export_vtf.bake(g_file_get_path(file));
 
     return export_successful;
