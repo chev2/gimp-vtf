@@ -17,6 +17,7 @@
 #include "vtfpp/ImageConversion.h"
 #include "vtfpp/ImageFormats.h"
 #include "vtfpp/VTF.h"
+#include "file-vtf.h"
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
@@ -37,50 +38,6 @@ struct _GimpVtf {
 #define GIMP_VTF_TYPE (gimp_vtf_get_type())
 G_DECLARE_FINAL_TYPE(GimpVtf, gimp_vtf, GIMP_VTF,, GimpPlugIn)
 G_DEFINE_TYPE(GimpVtf, gimp_vtf, GIMP_TYPE_PLUG_IN)
-
-// Headers
-static GList *gimp_vtf_query_procedures(
-    GimpPlugIn *plugin
-);
-static GimpProcedure *gimp_vtf_create_procedure(
-    GimpPlugIn *plugin, const gchar *name
-);
-static GimpValueArray *gimp_vtf_load(
-    GimpProcedure *procedure,
-    GimpRunMode run_mode,
-    GFile *file,
-    GimpMetadata *metadata,
-    GimpMetadataLoadFlags *flags,
-    GimpProcedureConfig *config,
-    gpointer run_data);
-static GimpImage *load_image(
-    GFile *file,
-    GError **error
-);
-static GimpValueArray *gimp_vtf_export(
-    GimpProcedure *procedure,
-    GimpRunMode run_mode,
-    GimpImage *image,
-    GFile *file,
-    GimpExportOptions *options,
-    GimpMetadata *metadata,
-    GimpProcedureConfig *config,
-    gpointer run_data
-);
-static gboolean export_dialog(
-    GimpImage *image,
-    GimpProcedure *procedure,
-    GimpProcedureConfig *config
-);
-static gboolean export_image(
-    GFile *file,
-    GimpImage *image,
-    GimpDrawable *drawable,
-    GimpImage *orig_image,
-    GimpProcedureConfig *config,
-    gboolean has_alpha,
-    GError **error
-);
 
 static void gimp_vtf_class_init(GimpVtfClass *gclass) {
     GimpPlugInClass *plug_in_class = GIMP_PLUG_IN_CLASS(gclass);
