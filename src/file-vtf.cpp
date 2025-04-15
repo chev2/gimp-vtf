@@ -511,7 +511,10 @@ static gboolean export_image(GFile *file,
 
     // Create a new VTF with the user's selected options
     vtfpp::VTF export_vtf = vtfpp::VTF::create(
-        image_format,
+        // Since we're reading from an RGBA8888 buffer (see below)
+        //  we have to create the VTF in this format.
+        // The user's chosen image format will still be respected (see outputFormat above).
+        vtfpp::ImageFormat::RGBA8888,
         width,
         height,
         creation_options
