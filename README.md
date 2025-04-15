@@ -31,7 +31,9 @@ This project requires GIMP 3.0 development headers to be present.
 
 Install them however you normally would for whatever operating system or distro you use.
 
-1. Initialize cmake: `cmake -B out/build/default`
-2. Compile the executable: `cmake --build out/build/default`
+Then, once that's complete:
 
-It will create the `file-vtf` executable in the `out/build/default` directory.
+1. Initialize cmake: `cmake -B build`
+2. Compile the executable: `cmake --build build`
+
+It will create the `file-vtf` executable in the `build` directory.
