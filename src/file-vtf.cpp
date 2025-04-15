@@ -348,8 +348,10 @@ static GimpImage *load_image(GFile *file, GError **error) {
             GeglBuffer *buffer = gimp_drawable_get_buffer(GIMP_DRAWABLE(layer));
             std::vector<std::byte> image_data_rgba = vtf_file.getImageDataAsRGBA8888(0, fr_i, fa_i, 0);
 
-            // 4 bytes per pixel (r, g, b, a)
-            uint8_t *dst_buf = g_new(uint8_t, width * height * 4);
+            // Get the bits per pixel for the RGBA8888 format (the one we're using above)
+            // Divide by 8 to get bytes
+            int bpp = vtfpp::ImageFormatDetails::bpp(vtfpp::ImageFormat::RGBA8888) / 8;
+            uint8_t *dst_buf = g_new(uint8_t, width * height * bpp);
             for (int i = 0; i < image_data_rgba.size(); i++) {
                 dst_buf[i] = (uint8_t)image_data_rgba[i];
             }
@@ -510,8 +512,9 @@ static gboolean export_image(GFile *file,
         creation_options
     );
 
+    int bpp = vtfpp::ImageFormatDetails::bpp(vtfpp::ImageFormat::RGBA8888) / 8;
+    int file_bytes_count = width * height * bpp;
     // Take bytes from the GIMP drawable buffer and put it in this vector
-    int file_bytes_count = width * height * 4;
     uint8_t *raw_bytes = g_new(uint8_t, file_bytes_count);
     gegl_buffer_get(
         buffer,
