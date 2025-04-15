@@ -439,8 +439,6 @@ static GimpValueArray *gimp_vtf_export(
 
     g_list_free(drawables);
 
-    gimp_message("Ran successfully");
-
     return gimp_procedure_new_return_values(procedure, status, NULL);
 }
 
