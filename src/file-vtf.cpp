@@ -141,7 +141,8 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             procedure,
             "version",
             "VTF version",
-            "VTF file version (7.0 to 7.6).\nRecommended: Use 7.4 for best compatibility.",
+            "VTF file version (7.0 to 7.6)."
+            "\nRecommended: Use 7.4 for best compatibility.",
             choice_version,
             "7_4",
             G_PARAM_READWRITE
@@ -213,9 +214,11 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             procedure,
             "image_format",
             "Image format",
-            "Image format to use.\nRecommended: DXT1 for regular textures without alpha, DXT5 for textures with alpha.",
+            "Image format to use."
+            "\nRecommended: DXT1 for regular textures without alpha, DXT5 for textures with alpha."
+            "\nIf you're developing specifically for an engine based on Strata Source, then use BC7.",
             choice_image_format,
-            // TODO: Change this selection based on whether or not the current image has alpha
+            // TODO: Change this selection based on whether or not the current image has alpha?
             "DXT1",
             G_PARAM_READWRITE
         );
@@ -231,7 +234,8 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             procedure,
             "image_type",
             "Image type",
-            "Image type (Standard, Environment Map, or Volumetric Texture).\nRecommended: Standard, unless you're making skyboxes, then use Environment Map.",
+            "Image type (Standard, Environment Map, or Volumetric Texture)."
+            "\nRecommended: Standard, unless you're making skyboxes, then use Environment Map.",
             choice_image_type,
             "standard",
             G_PARAM_READWRITE
@@ -254,7 +258,8 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             procedure,
             "mipmap_filter",
             "Mipmap filter",
-            "Mipmap resize filter to use.\nRecommended: Kaiser.",
+            "Mipmap resize filter to use."
+            "\nRecommended: Kaiser.",
             choice_mipmaps,
             "kaiser",
             G_PARAM_READWRITE
