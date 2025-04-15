@@ -124,7 +124,7 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             ATTRIBUTION_COPYRIGHT,
             ATTRIBUTION_DATE
         );
-        gimp_file_procedure_set_mime_types(GIMP_FILE_PROCEDURE(procedure), "image/vtf");
+        gimp_file_procedure_set_mime_types(GIMP_FILE_PROCEDURE(procedure), "image/x-vtf");
         gimp_file_procedure_set_extensions(GIMP_FILE_PROCEDURE(procedure), "vtf");
         gimp_file_procedure_set_magics(GIMP_FILE_PROCEDURE(procedure), "0,string,VTF\000");
     } else if (g_strcmp0(name, PROC_VTF_EXPORT) == 0) {
@@ -146,7 +146,7 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             ATTRIBUTION_DATE
         );
         gimp_file_procedure_set_format_name(GIMP_FILE_PROCEDURE(procedure), "VTF");
-        gimp_file_procedure_set_mime_types(GIMP_FILE_PROCEDURE(procedure), "image/vtf");
+        gimp_file_procedure_set_mime_types(GIMP_FILE_PROCEDURE(procedure), "image/x-vtf");
         gimp_file_procedure_set_extensions(GIMP_FILE_PROCEDURE(procedure), "vtf");
         gimp_export_procedure_set_capabilities(
             GIMP_EXPORT_PROCEDURE(procedure),
