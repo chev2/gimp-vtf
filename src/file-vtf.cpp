@@ -300,7 +300,7 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             procedure,
             "merge_layers_enabled",
             "Merge layers",
-            "If enabled, all GIMP layers will be merged into a single frame in the VTF."
+            "If enabled, all GIMP layers will be merged into a single image in the VTF."
             "\nKeep this disabled if you need to have multiple frames or faces in your VTF.",
             FALSE,
             G_PARAM_READWRITE
@@ -393,9 +393,11 @@ static GimpImage *load_image(GFile *file, GError **error) {
     // https://developer.valvesoftware.com/wiki/VTF_(Valve_Texture_Format)#Image_data_formats
     int frame_count = vtf_file.getFrameCount();
     int face_count = vtf_file.getFaceCount();
+    int layer_number = 0;
     for (int fr_i = 0; fr_i < frame_count; fr_i++) {
         for (int fa_i = 0; fa_i < face_count; fa_i++) {
-            gchar *layer_name = g_strdup_printf("Frame %d", fa_i + 1);
+            gchar *layer_name = g_strdup_printf("Layer %.3d", layer_number + 1);
+            layer_number++;
             
             // TODO: same as before, but for GimpImageType
             //  We'll just use GIMP_RGBA_IMAGE for now (RGB with alpha)
@@ -463,7 +465,9 @@ static GimpValueArray *gimp_vtf_export(
     orig_image = image;
 
     export_type = gimp_export_options_get_image(options, &image);
-    drawables = gimp_image_list_layers(image);
+    // We have to reverse the drawables list when exporting,
+    //  as GIMP sorts it top to bottom by default
+    drawables = g_list_reverse(gimp_image_list_layers(image));
     has_alpha = gimp_drawable_has_alpha(GIMP_DRAWABLE(drawables->data));
 
     // https://gitlab.gnome.org/GNOME/gimp/-/blob/master/plug-ins/file-jpeg/jpeg.c#L448
@@ -489,7 +493,7 @@ static GimpValueArray *gimp_vtf_export(
         gboolean export_successful = export_image(
             file,
             image,
-            GIMP_DRAWABLE(drawables->data),
+            drawables,
             orig_image,
             config,
             has_alpha,
@@ -544,7 +548,7 @@ static gboolean export_dialog(
 
 static gboolean export_image(GFile *file,
     GimpImage *image,
-    GimpDrawable *drawable,
+    GList *drawables,
     GimpImage *orig_image,
     GimpProcedureConfig *config,
     gboolean has_alpha,
@@ -558,7 +562,7 @@ static gboolean export_image(GFile *file,
     //  - If standard, do nothing special.
     //  - If environment map, set related flag, and use CreationOptions.isCubeMap
     //  - If volumetric texture, set related flag
-    int image_type;
+    VTFImageType image_type;
     // Mipmap filter. '-1' is a special value and means "don't generate mipmaps at all"
     int mipmap_filter;
     // Resize method (power-of-two bigger, smaller, or nearest)
@@ -570,7 +574,7 @@ static gboolean export_image(GFile *file,
     double bumpmap_scale;
 
     file_version = gimp_procedure_config_get_choice_id(config, "version");
-    image_type = gimp_procedure_config_get_choice_id(config, "image_type");
+    image_type = (VTFImageType)gimp_procedure_config_get_choice_id(config, "image_type");
     mipmap_filter = gimp_procedure_config_get_choice_id(config, "mipmap_filter");
     image_format = (vtfpp::ImageFormat)gimp_procedure_config_get_choice_id(config, "image_format");
     resize_method = (vtfpp::ImageConversion::ResizeMethod)gimp_procedure_config_get_choice_id(config, "resize_method");
@@ -586,9 +590,11 @@ static gboolean export_image(GFile *file,
     bool should_compute_mips = (mipmap_filter == -1) ? false : true;
 
     // Get width and height of the GIMP image
-    GeglBuffer *buffer = gimp_drawable_get_buffer(drawable);
-    int width = gegl_buffer_get_width(buffer);
-    int height = gegl_buffer_get_height(buffer);
+    GimpDrawable *drawable_reference = GIMP_DRAWABLE(drawables->data);
+    GeglBuffer *buffer_for_res = gimp_drawable_get_buffer(drawable_reference);
+    int width = gegl_buffer_get_width(buffer_for_res);
+    int height = gegl_buffer_get_height(buffer_for_res);
+    g_object_unref(buffer_for_res);
 
     // Set up some basic information in the exported VTF
     vtfpp::VTF export_vtf;
@@ -599,58 +605,85 @@ static gboolean export_image(GFile *file,
 
     // Set images inside the VTF
     // TODO: export multiple layers as multiple frames (& equivalent for faces)
-    int bpp = vtfpp::ImageFormatDetails::bpp(vtfpp::ImageFormat::RGBA8888) / 8;
-    int file_bytes_count = width * height * bpp;
-    // Take bytes from the GIMP drawable buffer and put it in this vector
-    uint8_t *raw_bytes = g_new(uint8_t, file_bytes_count);
-    gegl_buffer_get(
-        buffer,
-        GEGL_RECTANGLE(0, 0, width, height),
-        1.0,
-        gimp_drawable_get_format(drawable),
-        raw_bytes,
-        GEGL_AUTO_ROWSTRIDE,
-        GEGL_ABYSS_NONE
-    );
-    g_object_unref(buffer);
+    int layer_count = g_list_length(drawables);
 
-    // The vtfpp library can't seem to interface with uint8_t directly, so we have to
-    //  move data to a vector
-    std::vector<std::byte> raw_bytes_vec;
-    for (int i = 0; i < file_bytes_count; i++) {
-        raw_bytes_vec.push_back((std::byte)raw_bytes[i]);
+    // Depending on whether the image is a standard image or envmap/volumetric,
+    //  write the images either as frames or as faces
+    if (image_type == VTFImageType::TYPE_STANDARD) {
+        export_vtf.setFrameCount(layer_count);
+    } else {
+        export_vtf.setFaceCount(true, layer_count >= 7);
     }
 
-    // Take the bytes from the vector and parse it as a VTF image layer
-    bool bytes_to_image_successful = export_vtf.setImage(
-        raw_bytes_vec,
-        // Because the raw_bytes_vec is stored using 4 bytes per pixel,
-        //  we *must* use RGBA8888 when we initially import from the GIMP layers to the VTF.
-        // However, the user's selected VTF format will still be respected once we write to disk.
-        vtfpp::ImageFormat::RGBA8888,
-        width,
-        height,
-        // This is specifically the resize method used when the user gives the image in GIMP
-        //  an invalid size. It is *not* used when generating mipmaps (as far as I'm aware).
-        // Might make this configurable to the user, but there is an argument to be made that
-        //  if the user wanted to resize the image, they could just do it in GIMP. So for now,
-        //  I won't add it.
-        vtfpp::ImageConversion::ResizeFilter::DEFAULT,
-        0,
-        0,
-        0,
-        0
-    );
+    for (int layer_index = 0; layer_index < layer_count; layer_index++) {
+        GList *layer_at_nth = g_list_nth(drawables, layer_index);
+        GimpDrawable *drawable_for_this_layer = GIMP_DRAWABLE(layer_at_nth->data);
+        GeglBuffer *buffer_for_this_layer = gimp_drawable_get_buffer(drawable_for_this_layer);
 
-    if (!bytes_to_image_successful) {
-        return false;
+        int bpp = vtfpp::ImageFormatDetails::bpp(vtfpp::ImageFormat::RGBA8888) / 8;
+        int file_bytes_count = width * height * bpp;
+        // Take bytes from the GIMP drawable buffer and put it in this vector
+        uint8_t *raw_bytes = g_new(uint8_t, file_bytes_count);
+        gegl_buffer_get(
+            buffer_for_this_layer,
+            GEGL_RECTANGLE(0, 0, width, height),
+            1.0,
+            gimp_drawable_get_format(drawable_for_this_layer),
+            raw_bytes,
+            GEGL_AUTO_ROWSTRIDE,
+            GEGL_ABYSS_NONE
+        );
+        g_object_unref(buffer_for_this_layer);
+
+        // The vtfpp library can't seem to interface with uint8_t directly, so we have to
+        //  move data to a vector
+        std::vector<std::byte> raw_bytes_vec;
+        for (int i = 0; i < file_bytes_count; i++) {
+            raw_bytes_vec.push_back((std::byte)raw_bytes[i]);
+        }
+
+        // Depending on whether the image is a standard image or envmap/volumetric,
+        //  write the images either as frames or as faces
+        uint16_t frame_index = 0;
+        uint8_t face_index = 0;
+        if (image_type == VTFImageType::TYPE_STANDARD) {
+            frame_index = layer_index;
+        } else {
+            face_index = layer_index;
+        }
+
+        // Take the bytes from the vector and parse it as a VTF image layer
+        bool bytes_to_image_successful = export_vtf.setImage(
+            raw_bytes_vec,
+            // Because the raw_bytes_vec is stored using 4 bytes per pixel,
+            //  we *must* use RGBA8888 when we initially import from the GIMP layers to the VTF.
+            // However, the user's selected VTF format will still be respected once we write to disk.
+            vtfpp::ImageFormat::RGBA8888,
+            width,
+            height,
+            // This is specifically the resize method used when the user gives the image in GIMP
+            //  an invalid size. It is *not* used when generating mipmaps (as far as I'm aware).
+            // Might make this configurable to the user, but there is an argument to be made that
+            //  if the user wanted to resize the image, they could just do it in GIMP. So for now,
+            //  I won't add it.
+            vtfpp::ImageConversion::ResizeFilter::DEFAULT,
+            0,
+            frame_index,
+            face_index,
+            0
+        );
+
+        if (!bytes_to_image_successful) {
+            g_warning("Could not successfully call vtf.setImage() for layer %d", layer_index);
+            //return false;
+        }
     }
 
     //
     // Compute VTF settings
     //
     // TODO: set flags here
-    
+
     // TODO: set start frame here
 
     export_vtf.setBumpMapScale(bumpmap_scale);

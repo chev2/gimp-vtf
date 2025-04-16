@@ -53,9 +53,15 @@ static gboolean export_dialog(
 static gboolean export_image(
     GFile *file,
     GimpImage *image,
-    GimpDrawable *drawable,
+    GList *drawables,
     GimpImage *orig_image,
     GimpProcedureConfig *config,
     gboolean has_alpha,
     GError **error
 );
+
+enum VTFImageType : uint32_t {
+    TYPE_STANDARD           = 0,
+    TYPE_ENVIRONMENT_MAP    = 1,
+    TYPE_VOLUMETRIC_TEXTURE = 2
+};
