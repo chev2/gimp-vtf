@@ -57,6 +57,7 @@ static gboolean export_image(
     GimpImage *orig_image,
     GimpProcedureConfig *config,
     gboolean has_alpha,
+    GimpRunMode run_mode,
     GError **error
 );
 

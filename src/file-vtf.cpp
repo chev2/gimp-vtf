@@ -327,6 +327,46 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             G_PARAM_READWRITE
         );
 
+        // These descriptions are from the Valve wiki
+        // https://developer.valvesoftware.com/wiki/VTF_(Valve_Texture_Format)#Texture_flags
+        // Flags not configurable (because they're automatically set upon export):
+        //  - PWL Corrected/SRGB
+        //  - No Compress (TODO: is this automatically set? Should the user be allowed to set it?)
+        //  - No Mipmaps
+        //  - No Level of Detail
+        //  - One Bit Alpha
+        //  - Eight Bit Alpha
+        //  - Environment Map
+        gimp_procedure_add_boolean_argument(procedure, "flag_point_sample", "Point sample", "Disable Bilinear filtering for \"pixel art\"-style texture filtering. Breaks mipmapping.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_trilinear", "Trilinear sample", "Always use Trilinear filtering, even when set to Bilinear in video settings.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_clamp_s", "Clamp S", "Clamp S coordinates, to prevent horizontal texture wrapping.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_clamp_t", "Clamp T", "Clamp T coordinates, to prevent vertical texture wrapping.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_anisotropic", "Anisotropic sampling", "Always use Anisotropic filtering, even when set to Bilinear or Trilinear in video settings.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_hint_dxt5", "Hint DXT5", "Used in skyboxes. Makes sure edges are seamless.", FALSE, G_PARAM_READWRITE);
+        // PWL Corrected/SRGB
+        gimp_procedure_add_boolean_argument(procedure, "flag_normal_map", "Normal map", "Texture is a normal map.", FALSE, G_PARAM_READWRITE);
+        // No Mipmaps
+        // No LOD
+        gimp_procedure_add_boolean_argument(procedure, "flag_min_mipmap", "No minimum mipmap", "If set, load mipmaps below 32x32 pixels.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_procedural", "Procedural", "Texture is an procedural texture (code can modify it).", FALSE, G_PARAM_READWRITE);
+        // One Bit Alpha
+        // Eight Bit Alpha
+        // Environment Map
+        gimp_procedure_add_boolean_argument(procedure, "flag_rt", "Render target", "Texture is a render target.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_depth_rt", "Depth render target", "Texture is a depth render target.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_no_debug_override", "No debug override", "(Unknown)", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_single_copy", "Single copy", "(Unknown)", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_premultiply_color", "Premultiply color by one over mipmap level", "(Internal to VTEX)", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_normal_to_dudv", "Normal to DuDv", "Texture is a DuDv map (internal to vtex).", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_alpha_test_mip_gen", "Alpha test mipmap generation", "(internal to VTEX)", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_no_depth_buffer", "No depth buffer", "Do not buffer for video processing, generally render distance.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_nice_filtered", "Nice filtered", "NICE filtering was used to generate the mipmaps (internal to VTEX).", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_clamp_u", "Clamp U", "Clamp U coordinates (for volumetric textures).", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_vertex_texture", "Vertex texture", "Usable as a vertex texture", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_ssbump", "SSBump", "Texture is a SSBump.", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_load_most_mips", "Unfilterable", "(Unknown)", FALSE, G_PARAM_READWRITE);
+        gimp_procedure_add_boolean_argument(procedure, "flag_border", "Border", "Clamp to border colour on all texture coordinates", FALSE, G_PARAM_READWRITE);
+
         gimp_export_procedure_set_support_exif(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_iptc(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_xmp(GIMP_EXPORT_PROCEDURE(procedure), false);
@@ -497,6 +537,7 @@ static GimpValueArray *gimp_vtf_export(
             orig_image,
             config,
             has_alpha,
+            run_mode,
             &error
         );
 
@@ -525,6 +566,51 @@ static gboolean export_dialog(
         image
     );
 
+    gimp_procedure_dialog_get_label(
+        GIMP_PROCEDURE_DIALOG(dialog),
+        "vtf_flags_title",
+        "VTF Flags",
+        FALSE,
+        FALSE
+    );
+    gimp_procedure_dialog_fill_box(
+        GIMP_PROCEDURE_DIALOG(dialog),
+        "vtf_flags_options",
+
+        "flag_point_sample",
+        "flag_trilinear",
+        "flag_clamp_s",
+        "flag_clamp_t",
+        "flag_anisotropic",
+        "flag_hint_dxt5",
+        "flag_normal_map",
+        "flag_min_mipmap",
+        "flag_procedural",
+        "flag_rt",
+        "flag_depth_rt",
+        "flag_no_debug_override",
+        "flag_single_copy",
+        "flag_premultiply_color",
+        "flag_normal_to_dudv",
+        "flag_alpha_test_mip_gen",
+        "flag_no_depth_buffer",
+        "flag_nice_filtered",
+        "flag_clamp_u",
+        "flag_vertex_texture",
+        "flag_ssbump",
+        "flag_load_most_mips",
+        "flag_border",
+
+        NULL
+    );
+    gimp_procedure_dialog_fill_expander(
+        GIMP_PROCEDURE_DIALOG(dialog),
+        "vtf_flags_frame",
+        "vtf_flags_title",
+        FALSE,
+        "vtf_flags_options"
+    );
+
     gimp_procedure_dialog_fill(
         GIMP_PROCEDURE_DIALOG(dialog),
         "image_type",
@@ -536,9 +622,12 @@ static gboolean export_dialog(
         "thumbnail_enabled",
         "recompute_reflectivity_enabled",
         "merge_layers_enabled",
+
+        "vtf_flags_frame",
+
         NULL
     );
-    
+
     gboolean run_successful = gimp_procedure_dialog_run(GIMP_PROCEDURE_DIALOG(dialog));
 
     gtk_widget_destroy(dialog);
@@ -552,6 +641,7 @@ static gboolean export_image(GFile *file,
     GimpImage *orig_image,
     GimpProcedureConfig *config,
     gboolean has_alpha,
+    GimpRunMode run_mode,
     GError **error
 ) {
     // This is specifically the VTF minor version. So if the user chose 7.4, this would be '4'
@@ -573,6 +663,18 @@ static gboolean export_image(GFile *file,
     bool recompute_reflectivity_enabled;
     double bumpmap_scale;
 
+    // Specifically, if we're not running with re-used previous values
+    // TODO: This code doesn't work
+    if (run_mode == GIMP_RUN_INTERACTIVE) {
+        // Default to DXT5 if image has alpha
+        // if (has_alpha) {
+        //     g_object_set(config, "image_type", (int)vtfpp::ImageFormat::DXT5, NULL);
+        // // Default to DXT1 otherwise
+        // } else {
+        //     g_object_set(config, "image_type", (int)vtfpp::ImageFormat::DXT1, NULL);
+        // }
+    }
+
     file_version = gimp_procedure_config_get_choice_id(config, "version");
     image_type = (VTFImageType)gimp_procedure_config_get_choice_id(config, "image_type");
     mipmap_filter = gimp_procedure_config_get_choice_id(config, "mipmap_filter");
@@ -587,8 +689,6 @@ static gboolean export_image(GFile *file,
         NULL
     );
 
-    bool should_compute_mips = (mipmap_filter == -1) ? false : true;
-
     // Get width and height of the GIMP image
     GimpDrawable *drawable_reference = GIMP_DRAWABLE(drawables->data);
     GeglBuffer *buffer_for_res = gimp_drawable_get_buffer(drawable_reference);
@@ -599,7 +699,8 @@ static gboolean export_image(GFile *file,
     // Set up some basic information in the exported VTF
     vtfpp::VTF export_vtf;
     export_vtf.setVersion(7, file_version);
-    export_vtf.addFlags(vtfpp::VTF::FLAG_SRGB);
+    // SRGB flag (the standard color space GIMP uses)
+    export_vtf.setFlags(vtfpp::VTF::FLAG_PWL_CORRECTED);
     export_vtf.setImageResizeMethods(resize_method, resize_method);
     export_vtf.setSize(width, height, vtfpp::ImageConversion::ResizeFilter::DEFAULT);
 
@@ -682,12 +783,92 @@ static gboolean export_image(GFile *file,
     //
     // Compute VTF settings
     //
-    // TODO: set flags here
+    
+    // Set flags
+    bool flag_point_sample;
+    bool flag_trilinear;
+    bool flag_clamp_s;
+    bool flag_clamp_t;
+    bool flag_anisotropic;
+    bool flag_hint_dxt5;
+    bool flag_normal_map;
+    bool flag_min_mipmap;
+    bool flag_procedural;
+    bool flag_rt;
+    bool flag_depth_rt;
+    bool flag_no_debug_override;
+    bool flag_single_copy;
+    bool flag_premultiply_color;
+    bool flag_normal_to_dudv;
+    bool flag_alpha_test_mip_gen;
+    bool flag_no_depth_buffer;
+    bool flag_nice_filtered;
+    bool flag_clamp_u;
+    bool flag_vertex_texture;
+    bool flag_ssbump;
+    bool flag_load_most_mips;
+    bool flag_border;
+    g_object_get(
+        config,
+        "flag_point_sample",                &flag_point_sample,
+        "flag_trilinear",                   &flag_trilinear,
+        "flag_clamp_s",                     &flag_clamp_s,
+        "flag_clamp_t",                     &flag_clamp_t,
+        "flag_anisotropic",                 &flag_anisotropic,
+        "flag_hint_dxt5",                   &flag_hint_dxt5,
+        "flag_normal_map",                  &flag_normal_map,
+        "flag_min_mipmap",                  &flag_min_mipmap,
+        "flag_procedural",                  &flag_procedural,
+        "flag_rt",                          &flag_rt,
+        "flag_depth_rt",                    &flag_depth_rt,
+        "flag_no_debug_override",           &flag_no_debug_override,
+        "flag_single_copy",                 &flag_single_copy,
+        "flag_premultiply_color",           &flag_premultiply_color,
+        "flag_normal_to_dudv",              &flag_normal_to_dudv,
+        "flag_alpha_test_mip_gen",          &flag_alpha_test_mip_gen,
+        "flag_no_depth_buffer",             &flag_no_depth_buffer,
+        "flag_nice_filtered",               &flag_nice_filtered,
+        "flag_clamp_u",                     &flag_clamp_u,
+        "flag_vertex_texture",              &flag_vertex_texture,
+        "flag_ssbump",                      &flag_ssbump,
+        "flag_load_most_mips",              &flag_load_most_mips,
+        "flag_border",                      &flag_border,
+        NULL
+    );
+    
+    // TODO: format this nicely
+    vtfpp::VTF::Flags flag_none = vtfpp::VTF::FLAG_NONE;
+    vtfpp::VTF::Flags current_flags = export_vtf.getFlags();
+    current_flags |= flag_point_sample ? vtfpp::VTF::FLAG_POINT_SAMPLE : flag_none;
+    current_flags |= flag_trilinear ? vtfpp::VTF::FLAG_TRILINEAR : flag_none;
+    current_flags |= flag_clamp_s ? vtfpp::VTF::FLAG_CLAMP_S : flag_none;
+    current_flags |= flag_clamp_t ? vtfpp::VTF::FLAG_CLAMP_T : flag_none;
+    current_flags |= flag_anisotropic ? vtfpp::VTF::FLAG_ANISOTROPIC : flag_none;
+    current_flags |= flag_hint_dxt5 ? vtfpp::VTF::FLAG_HINT_DXT5 : flag_none;
+    current_flags |= flag_normal_map ? vtfpp::VTF::FLAG_NORMAL : flag_none;
+    current_flags |= flag_min_mipmap ? vtfpp::VTF::FLAG_LOAD_ALL_MIPS : flag_none;
+    current_flags |= flag_procedural ? vtfpp::VTF::FLAG_PROCEDURAL : flag_none;
+    current_flags |= flag_rt ? vtfpp::VTF::FLAG_RENDERTARGET : flag_none;
+    current_flags |= flag_depth_rt ? vtfpp::VTF::FLAG_DEPTH_RENDERTARGET : flag_none;
+    current_flags |= flag_no_debug_override ? vtfpp::VTF::FLAG_NO_DEBUG_OVERRIDE : flag_none;
+    current_flags |= flag_single_copy ? vtfpp::VTF::FLAG_SINGLE_COPY : flag_none;
+    current_flags |= flag_premultiply_color ? vtfpp::VTF::FLAG_DEFAULT_POOL : flag_none;
+    current_flags |= flag_normal_to_dudv ? vtfpp::VTF::FLAG_COMBINED : flag_none;
+    current_flags |= flag_alpha_test_mip_gen ? vtfpp::VTF::FLAG_ASYNC_DOWNLOAD : flag_none;
+    current_flags |= flag_no_depth_buffer ? vtfpp::VTF::FLAG_NO_DEPTH_BUFFER : flag_none;
+    current_flags |= flag_nice_filtered ? vtfpp::VTF::FLAG_SKIP_INITIAL_DOWNLOAD : flag_none;
+    current_flags |= flag_clamp_u ? vtfpp::VTF::FLAG_CLAMP_U : flag_none;
+    current_flags |= flag_vertex_texture ? vtfpp::VTF::FLAG_VERTEX_TEXTURE : flag_none;
+    current_flags |= flag_ssbump ? vtfpp::VTF::FLAG_SSBUMP : flag_none;
+    current_flags |= flag_load_most_mips ? vtfpp::VTF::FLAG_LOAD_MOST_MIPS : flag_none;
+    current_flags |= flag_border ? vtfpp::VTF::FLAG_BORDER : flag_none;
+    export_vtf.setFlags(current_flags);
 
     // TODO: set start frame here
 
     export_vtf.setBumpMapScale(bumpmap_scale);
 
+    bool should_compute_mips = (mipmap_filter == -1) ? false : true;
     if (should_compute_mips) {
         export_vtf.setMipCount(vtfpp::ImageDimensions::getRecommendedMipCountForDims(image_format, width, height));
         export_vtf.computeMips((vtfpp::ImageConversion::ResizeFilter)mipmap_filter);
