@@ -285,11 +285,53 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
             G_PARAM_READWRITE
         );
 
+        gimp_procedure_add_boolean_argument(
+            procedure,
+            "thumbnail_enabled",
+            "Write thumbnail",
+            "If enabled, write thumbnail to VTF."
+            "\nThis should almost always be enabled.",
+            TRUE,
+            G_PARAM_READWRITE
+        );
+
+        // TODO: implement
+        gimp_procedure_add_boolean_argument(
+            procedure,
+            "merge_layers_enabled",
+            "Merge layers",
+            "If enabled, all GIMP layers will be merged into a single frame in the VTF."
+            "\nKeep this disabled if you need to have multiple frames or faces in your VTF.",
+            FALSE,
+            G_PARAM_READWRITE
+        );
+
+        gimp_procedure_add_boolean_argument(
+            procedure,
+            "recompute_reflectivity_enabled",
+            "Recompute reflectivity",
+            "If enabled, the reflectivity of the VTF will be recomputed."
+            "\nYou should probably keep this enabled unless you know what you're doing.",
+            TRUE,
+            G_PARAM_READWRITE
+        );
+
+        gimp_procedure_add_double_argument(
+            procedure,
+            "bumpmap_scale",
+            "Bumpmap scale",
+            "Bumpmap scale",
+            0.0f,
+            10.0f,
+            1.0f,
+            G_PARAM_READWRITE
+        );
+
         gimp_export_procedure_set_support_exif(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_iptc(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_xmp(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_profile(GIMP_EXPORT_PROCEDURE(procedure), false);
-        gimp_export_procedure_set_support_thumbnail(GIMP_EXPORT_PROCEDURE(procedure), true);
+        gimp_export_procedure_set_support_thumbnail(GIMP_EXPORT_PROCEDURE(procedure), false);
         gimp_export_procedure_set_support_comment(GIMP_EXPORT_PROCEDURE(procedure), false);
     }
 
@@ -487,6 +529,10 @@ static gboolean export_dialog(
         "image_format",
         "mipmap_filter",
         "resize_method",
+        "bumpmap_scale",
+        "thumbnail_enabled",
+        "recompute_reflectivity_enabled",
+        "merge_layers_enabled",
         NULL
     );
     
@@ -505,49 +551,55 @@ static gboolean export_image(GFile *file,
     gboolean has_alpha,
     GError **error
 ) {
-    const Babl *file_format = gimp_drawable_get_format(drawable);
-
     // This is specifically the VTF minor version. So if the user chose 7.4, this would be '4'
-    int file_version = gimp_procedure_config_get_choice_id(config, "version");
+    int file_version;
     // Image format (DXT1, RGBA8888, etc.)
-    vtfpp::ImageFormat image_format = (vtfpp::ImageFormat)gimp_procedure_config_get_choice_id(config, "image_format");
+    vtfpp::ImageFormat image_format;
     // TODO (image types):
     //  - If standard, do nothing special.
     //  - If environment map, set related flag, and use CreationOptions.isCubeMap
     //  - If volumetric texture, set related flag
-    int image_type = gimp_procedure_config_get_choice_id(config, "image_type");
+    int image_type;
     // Mipmap filter. '-1' is a special value and means "don't generate mipmaps at all"
-    int mipmap_filter = gimp_procedure_config_get_choice_id(config, "mipmap_filter");
-    bool shouldComputeMips = (mipmap_filter == -1) ? false : true;
+    int mipmap_filter;
+    // Resize method (power-of-two bigger, smaller, or nearest)
+    vtfpp::ImageConversion::ResizeMethod resize_method;
+    bool thumbnail_enabled;
+    // TODO: implement
+    bool merge_layers_enabled;
+    bool recompute_reflectivity_enabled;
+    double bumpmap_scale;
 
-    vtfpp::ImageConversion::ResizeMethod resize_method = (vtfpp::ImageConversion::ResizeMethod)gimp_procedure_config_get_choice_id(config, "resize_method");
+    file_version = gimp_procedure_config_get_choice_id(config, "version");
+    image_type = gimp_procedure_config_get_choice_id(config, "image_type");
+    mipmap_filter = gimp_procedure_config_get_choice_id(config, "mipmap_filter");
+    image_format = (vtfpp::ImageFormat)gimp_procedure_config_get_choice_id(config, "image_format");
+    resize_method = (vtfpp::ImageConversion::ResizeMethod)gimp_procedure_config_get_choice_id(config, "resize_method");
+    g_object_get(
+        config,
+        "thumbnail_enabled",                &thumbnail_enabled,
+        "merge_layers_enabled",             &merge_layers_enabled,
+        "recompute_reflectivity_enabled",   &recompute_reflectivity_enabled,
+        "bumpmap_scale",                    &bumpmap_scale,
+        NULL
+    );
 
+    bool should_compute_mips = (mipmap_filter == -1) ? false : true;
+
+    // Get width and height of the GIMP image
     GeglBuffer *buffer = gimp_drawable_get_buffer(drawable);
     int width = gegl_buffer_get_width(buffer);
     int height = gegl_buffer_get_height(buffer);
 
-    // TODO:
-    //  - auto generate mipmaps
-    //  - (DONE) make weird resizes to standard power-of-two work
-    //  - export multiple layers as multiple frames (& equivalent for faces)
-    vtfpp::VTF::CreationOptions creation_options;
-    creation_options.minorVersion = file_version;
-    creation_options.outputFormat = image_format;
-    creation_options.widthResizeMethod = resize_method;
-    creation_options.heightResizeMethod = resize_method;
-    creation_options.computeMips = shouldComputeMips;
+    // Set up some basic information in the exported VTF
+    vtfpp::VTF export_vtf;
+    export_vtf.setVersion(7, file_version);
+    export_vtf.addFlags(vtfpp::VTF::FLAG_SRGB);
+    export_vtf.setImageResizeMethods(resize_method, resize_method);
+    export_vtf.setSize(width, height, vtfpp::ImageConversion::ResizeFilter::DEFAULT);
 
-    // Create a new VTF with the user's selected options
-    vtfpp::VTF export_vtf = vtfpp::VTF::create(
-        // Since we're reading from an RGBA8888 buffer (see below)
-        //  we have to create the VTF in this format.
-        // The user's chosen image format will still be respected (see outputFormat above).
-        vtfpp::ImageFormat::RGBA8888,
-        width,
-        height,
-        creation_options
-    );
-
+    // Set images inside the VTF
+    // TODO: export multiple layers as multiple frames (& equivalent for faces)
     int bpp = vtfpp::ImageFormatDetails::bpp(vtfpp::ImageFormat::RGBA8888) / 8;
     int file_bytes_count = width * height * bpp;
     // Take bytes from the GIMP drawable buffer and put it in this vector
@@ -556,7 +608,7 @@ static gboolean export_image(GFile *file,
         buffer,
         GEGL_RECTANGLE(0, 0, width, height),
         1.0,
-        file_format,
+        gimp_drawable_get_format(drawable),
         raw_bytes,
         GEGL_AUTO_ROWSTRIDE,
         GEGL_ABYSS_NONE
@@ -591,12 +643,43 @@ static gboolean export_image(GFile *file,
         0
     );
 
-    if (shouldComputeMips) {
+    if (!bytes_to_image_successful) {
+        return false;
+    }
+
+    //
+    // Compute VTF settings
+    //
+    // TODO: set flags here
+    
+    // TODO: set start frame here
+
+    export_vtf.setBumpMapScale(bumpmap_scale);
+
+    if (should_compute_mips) {
         export_vtf.setMipCount(vtfpp::ImageDimensions::getRecommendedMipCountForDims(image_format, width, height));
         export_vtf.computeMips((vtfpp::ImageConversion::ResizeFilter)mipmap_filter);
     } else {
         export_vtf.setMipCount(1);
     }
+
+    if (thumbnail_enabled) {
+        export_vtf.computeThumbnail(vtfpp::ImageConversion::ResizeFilter::DEFAULT);
+    } else {
+        export_vtf.removeThumbnail();
+    }
+
+    if (recompute_reflectivity_enabled) {
+        export_vtf.computeReflectivity();
+    }
+
+    export_vtf.computeTransparencyFlags();
+
+    export_vtf.setFormat(image_format, vtfpp::ImageConversion::ResizeFilter::DEFAULT);
+
+    // TODO: set compression method here
+    
+    // TODO: set compression level here
 
     // Write VTF to file on disk
     bool export_successful = export_vtf.bake(g_file_get_path(file));
