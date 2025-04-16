@@ -355,7 +355,6 @@ static GimpValueArray *gimp_vtf_load(
     GError *error = NULL;
 
     // Attempt to parse the VTF file
-    char *file_path = g_file_get_path(file);
     GimpImage *image = load_image(file, &error);
     // Generic catch-all if the image wasn't loaded for whatever reason
     if (!image) {
