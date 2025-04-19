@@ -33,7 +33,7 @@ jobs:
         # Thanks to UbuntuHandbook for providing a prebuilt GIMP 3.0 package repository
         # Source: https://ubuntuhandbook.org/index.php/2024/11/install-gimp-3-ubuntu/
         run: |
-          sudo apt install -y pkg-config
+          sudo apt install -y pkg-config cmake
           sudo apt install -y software-properties-common
           sudo add-apt-repository -y ppa:ubuntuhandbook1/gimp-3
           sudo apt install -y gimp libgimp-3.0-0 libgimp-3.0-dev libgexiv2-dev
@@ -67,6 +67,7 @@ jobs:
           # GIMP & build dependencies (namely pkg-config) are installed here
           install: >-
             mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-gimp
       - uses: actions/checkout@v4
