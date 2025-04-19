@@ -23,6 +23,8 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       # This step is responsible for downloading & install GIMP dependencies
       #  for ubuntu-latest.
@@ -65,9 +67,11 @@ jobs:
           # GIMP & build dependencies (namely pkg-config) are installed here
           install: >-
             mingw-w64-ucrt-x86_64-gcc
-            pkgconf
-            gimp
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-gimp
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Configure CMake
         # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
