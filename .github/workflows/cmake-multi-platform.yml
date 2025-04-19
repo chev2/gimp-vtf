@@ -71,14 +71,14 @@ jobs:
           update: true
           # GIMP & build dependencies (namely pkg-config) are installed here
           install: >-
-            mingw-w64-gcc
-            mingw-w64-binutils
-            mingw-w64-crt-git
-            mingw-w64-headers-git
-            mingw-w64-winpthreads-git
-            mingw-w64-cmake
-            mingw-w64-pkgconf
-            mingw-w64-gimp
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-crt-git
+            mingw-w64-x86_64-headers-git
+            mingw-w64-x86_64-winpthreads-git
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gimp
       - uses: actions/checkout@v4
         with:
           submodules: recursive
