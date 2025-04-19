@@ -67,15 +67,18 @@ jobs:
     steps:
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: MINGW64
           update: true
           # GIMP & build dependencies (namely pkg-config) are installed here
           install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-gcc-libs
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-pkgconf
-            mingw-w64-ucrt-x86_64-gimp
+            mingw-w64-gcc
+            mingw-w64-binutils
+            mingw-w64-crt-git
+            mingw-w64-headers-git
+            mingw-w64-winpthreads-git
+            mingw-w64-cmake
+            mingw-w64-pkgconf
+            mingw-w64-gimp
       - uses: actions/checkout@v4
         with:
           submodules: recursive
