@@ -26,8 +26,7 @@ jobs:
         with:
           submodules: recursive
 
-      # This step is responsible for downloading & install GIMP dependencies
-      #  for ubuntu-latest.
+      # This step is responsible for downloading & installing GIMP dependencies for ubuntu-latest.
       - name: Install GIMP dependencies
         # GIMP 3.0 isn't available in the standard package repo yet, so we have to do all this
         # Thanks to UbuntuHandbook for providing a prebuilt GIMP 3.0 package repository
@@ -73,6 +72,7 @@ jobs:
           # GIMP & build dependencies (namely pkg-config) are installed here
           install: >-
             mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-gcc-libs
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-gimp
