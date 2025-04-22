@@ -4,10 +4,7 @@ project(
     DESCRIPTION "GIMP plugin to read and write Valve Texture Format (VTF) files"
     VERSION 0.1.0
     HOMEPAGE_URL "https://github.com/chev2/gimp-vtf"
-    LANGUAGES C CXX)
-
-# Build debug symbols
-#set(CMAKE_BUILD_TYPE Debug)
+    LANGUAGES CXX C)
 
 # Force C++20
 set(CMAKE_CXX_STANDARD 20)
@@ -21,8 +18,14 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(GIMPUI_3_0 REQUIRED IMPORTED_TARGET GLOBAL gimpui-3.0)
-pkg_check_modules(GIMP_3_0 REQUIRED IMPORTED_TARGET GLOBAL gimp-3.0)
+pkg_check_modules(
+    GIMP REQUIRED IMPORTED_TARGET GLOBAL
+    gimp-3.0
+    gimpui-3.0
+)
+
+include_directories(${GIMP_INCLUDE_DIRS})
+link_directories(${GIMP_LIBRARY_DIRS})
 
 # Set sourcepp compile options
 set(SOURCEPP_LIBS_START_ENABLED OFF CACHE INTERNAL "" FORCE)
@@ -49,4 +52,4 @@ set(CRYPTOPP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ext/cryptopp")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ext/sourcepp")
 
 add_executable(file-vtf src/file-vtf.cpp)
-target_link_libraries(file-vtf PRIVATE PkgConfig::GIMP_3_0 PkgConfig::GIMPUI_3_0 sourcepp::vtfpp)
+target_link_libraries(file-vtf PRIVATE ${GIMP_LIBRARIES} sourcepp::vtfpp)
