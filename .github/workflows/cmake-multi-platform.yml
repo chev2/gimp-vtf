@@ -62,61 +62,50 @@ jobs:
           name: file-vtf-linux
           path: "${{ github.workspace }}/build/linux/file-vtf"
 
-      - name: Configure CMake (MinGW)
+  build-windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          spectre: true
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          # GIMP & build dependencies (namely pkg-config) are installed here
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-glib2
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gimp
+          path-type: inherit
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+        # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
         run: >
-          cmake -B "${{ github.workspace }}/build/windows"
+          cmake -B "${{ github.workspace }}/build"
+          -DCMAKE_CXX_COMPILER=cl
+          -DCMAKE_C_COMPILER=cl
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=tc-windows-mingw.cmake
           -S "${{ github.workspace }}"
 
-      - name: Build (MinGW)
-        run: cmake --build "${{ github.workspace }}/build/windows" --config Release
+      - name: Build
+        # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
+        run: cmake --build "${{ github.workspace }}/build" --config Release
 
-      - name: Archive generated plugin (MinGW)
+      - name: Archive generated plugin
         uses: actions/upload-artifact@v4
         with:
-          name: file-vtf-windows
-          path: "${{ github.workspace }}/build/windows/file-vtf.exe"
-
-  # build-windows:
-  #   runs-on: windows-latest
-
-  #   defaults:
-  #     run:
-  #       shell: msys2 {0}
-
-  #   steps:
-  #     - uses: msys2/setup-msys2@v2
-  #       with:
-  #         msystem: MINGW64
-  #         update: true
-  #         # GIMP & build dependencies (namely pkg-config) are installed here
-  #         install: >-
-  #           mingw-w64-x86_64-gcc
-  #           mingw-w64-x86_64-glib2
-  #           mingw-w64-x86_64-cmake
-  #           mingw-w64-x86_64-pkgconf
-  #           mingw-w64-x86_64-gimp
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         submodules: recursive
-
-  #     - name: Configure CMake
-  #       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-  #       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-  #       run: >
-  #         cmake -B "${{ github.workspace }}/build"
-  #         -DCMAKE_CXX_COMPILER=cl
-  #         -DCMAKE_C_COMPILER=cl
-  #         -DCMAKE_BUILD_TYPE=Release
-  #         -S "${{ github.workspace }}"
-
-  #     - name: Build
-  #       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
-  #       run: cmake --build "${{ github.workspace }}/build" --config Release
-
-  #     - name: Archive generated plugin
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: file-vtf
-  #         path: "${{ github.workspace }}/build/file-vtf"
+          name: file-vtf
+          path: "${{ github.workspace }}/build/file-vtf.exe"
