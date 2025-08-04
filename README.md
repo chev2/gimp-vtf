@@ -4,6 +4,8 @@ A GIMP 3.0 plugin that reads and writes Valve Texture Format (VTF) files.
 
 Internally, it uses [sourcepp](https://github.com/craftablescience/sourcepp/). Many thanks to the author of sourcepp for making this plugin possible.
 
+The project is currently in a **beta** state; the plugin works, but some features are missing. There is no working Windows build yet (see #1). 
+
 ## Installation
 
 Go to **[Releases](https://github.com/chev2/gimp-vtf/releases)** on the right of the page.
