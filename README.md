@@ -6,13 +6,14 @@ Internally, it uses [sourcepp](https://github.com/craftablescience/sourcepp/). M
 
 ## Installation
 
-Go to **[Releases](./releases/)** on the right of the page.
+Go to **[Releases](https://github.com/chev2/gimp-vtf/releases)** on the right of the page.
 
 Download the zip file according to your operating system.
 
 ### Windows
 
-\-\- todo \-\-
+Currently not supported :\/
+
 
 ### Linux
 
@@ -23,7 +24,8 @@ Download the zip file according to your operating system.
 
 ### MacOS
 
-\-\- todo \-\-
+Currently not supported :\/
+
 
 ## Build
 
