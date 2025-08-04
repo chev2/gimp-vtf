@@ -27,13 +27,15 @@ Download the zip file according to your operating system.
 
 ## Build
 
-This project requires GIMP 3.0 development headers to be present.
+This project requires GIMP 3.0 development headers to be present. It's tested and confirmed working on GIMP 3.0.2.
 
-Install them however you normally would for whatever operating system or distro you use.
+Install those development headers however you normally would for whatever operating system or distro you use. You can take a look at the GitHub actions workflow file for how it does this for each operating system.
 
 Then, once that's complete:
 
-1. Initialize cmake: `cmake -B build`
-2. Compile the executable: `cmake --build build`
+1. Clone this repo: `git clone https://github.com/chev2/gimp-vtf gimp-vtf`
+2. Change directory into the repo: `cd gimp-vtf`
+3. Initialize cmake: `cmake -B build`
+4. Compile the executable: `cmake --build build`
 
 It will create the `file-vtf` executable in the `build` directory.
