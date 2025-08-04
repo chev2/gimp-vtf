@@ -299,7 +299,7 @@ static GimpProcedure *gimp_vtf_create_procedure(GimpPlugIn *plugin, const gchar 
         gimp_procedure_add_boolean_argument(
             procedure,
             "merge_layers_enabled",
-            "Merge layers",
+            "(WIP) Merge layers",
             "If enabled, all GIMP layers will be merged into a single image in the VTF."
             "\nKeep this disabled if you need to have multiple frames or faces in your VTF.",
             FALSE,
