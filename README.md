@@ -37,7 +37,7 @@ Install those development headers however you normally would for whatever operat
 
 Then, once that's complete:
 
-1. Clone this repo: `git clone https://github.com/chev2/gimp-vtf gimp-vtf`
+1. Clone this repo: `git clone https://github.com/chev2/gimp-vtf.git gimp-vtf --recurse-submodules`
 2. Change directory into the repo: `cd gimp-vtf`
 3. Initialize cmake: `cmake -B build`
 4. Compile the executable: `cmake --build build`
